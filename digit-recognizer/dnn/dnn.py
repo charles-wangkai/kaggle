@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-
+np.random.seed(0)
 tf.set_random_seed(0)
 
 # settings
@@ -34,8 +34,8 @@ LEARNING_RATE = 1e-4
 # TRAINING_ITERATIONS = 2500
 TRAINING_ITERATIONS = 20000
     
-DROPOUT = 0.5
-BATCH_SIZE = 50
+DROPOUT = 0.75
+BATCH_SIZE = 100
 
 # set to 0 to train on all available data
 # VALIDATION_SIZE = 2000
@@ -43,6 +43,8 @@ VALIDATION_SIZE = 0
 
 # image number to output
 IMAGE_TO_DISPLAY = 10
+
+EPSILON = 1e-9
 
 
 # ## Data preparation
@@ -217,9 +219,9 @@ def max_pool_2x2(x):
 # input & output of NN
 
 # images
-x = tf.placeholder('float', shape=[None, image_size])
+x = tf.placeholder(tf.float32, shape=[None, image_size])
 # labels
-y_ = tf.placeholder('float', shape=[None, labels_count])
+y_ = tf.placeholder(tf.float32, shape=[None, labels_count])
 
 
 # The first layer is a convolution, followed by max pooling. The convolution computes 32 features for each 5x5 patch. Its weight tensor has a shape of [5, 5, 1, 32]. The first two dimensions are the patch size, the next is the number of input channels (1 means that images are grayscale), and the last is the number of output channels. There is also a bias vector with a component for each output channel.
@@ -245,14 +247,14 @@ h_pool1 = max_pool_2x2(h_conv1)
 # print (h_pool1.get_shape()) # => (40000, 14, 14, 32)
 
 
-# Prepare for visualization
-# display 32 fetures in 4 by 8 grid
-layer1 = tf.reshape(h_conv1, (-1, image_height, image_width, 4 , 8))  
-
-# reorder so the channels are in the first dimension, x and y follow.
-layer1 = tf.transpose(layer1, (0, 3, 1, 4, 2))
-
-layer1 = tf.reshape(layer1, (-1, image_height * 4, image_width * 8)) 
+# # Prepare for visualization
+# # display 32 fetures in 4 by 8 grid
+# layer1 = tf.reshape(h_conv1, (-1, image_height, image_width, 4 , 8))  
+# 
+# # reorder so the channels are in the first dimension, x and y follow.
+# layer1 = tf.transpose(layer1, (0, 3, 1, 4, 2))
+# 
+# layer1 = tf.reshape(layer1, (-1, image_height * 4, image_width * 8)) 
 
 
 # The second layer has 64 features for each 5x5 patch. Its weight tensor has a shape of [5, 5, 32, 64]. The first two dimensions are the patch size, the next is the number of input channels (32 channels correspond to 32 featured that we got from previous convolutional layer), and the last is the number of output channels. There is also a bias vector with a component for each output channel.
@@ -270,14 +272,14 @@ h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
 h_pool2 = max_pool_2x2(h_conv2)
 # print (h_pool2.get_shape()) # => (40000, 7, 7, 64)
 
-# Prepare for visualization
-# display 64 fetures in 4 by 16 grid
-layer2 = tf.reshape(h_conv2, (-1, 14, 14, 4 , 16))  
-
-# reorder so the channels are in the first dimension, x and y follow.
-layer2 = tf.transpose(layer2, (0, 3, 1, 4, 2))
-
-layer2 = tf.reshape(layer2, (-1, 14 * 4, 14 * 16)) 
+# # Prepare for visualization
+# # display 64 fetures in 4 by 16 grid
+# layer2 = tf.reshape(h_conv2, (-1, 14, 14, 4 , 16))  
+# 
+# # reorder so the channels are in the first dimension, x and y follow.
+# layer2 = tf.transpose(layer2, (0, 3, 1, 4, 2))
+# 
+# layer2 = tf.reshape(layer2, (-1, 14 * 4, 14 * 16)) 
 
 
 # Now that the image size is reduced to 7x7, we add a [fully-connected layer](https://en.wikipedia.org/wiki/Convolutional_neural_network#Fully_Connected_layer) with 1024 neurones to allow processing on the entire image (each of the neurons of the fully connected layer is connected to all the activations/outpus of the previous layer)
@@ -302,7 +304,7 @@ h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 # In[17]:
 
 # dropout
-keep_prob = tf.placeholder('float')
+keep_prob = tf.placeholder(tf.float32)
 h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
 
@@ -326,7 +328,7 @@ y = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 # In[19]:
 
 # cost function
-cross_entropy = -tf.reduce_sum(y_ * tf.log(y))
+cross_entropy = -tf.reduce_sum(y_ * tf.log(y + EPSILON))
 
 
 # optimisation function
@@ -335,7 +337,7 @@ train_step = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cross_entropy)
 # evaluation
 correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
 
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 
 # To predict values from test data, highest probability is picked from "one-hot vector" indicating that chances of  an image being one of the digits are highest.
@@ -440,11 +442,13 @@ for i in range(TRAINING_ITERATIONS):
         x_range.append(i)
         
         # increase display_step
-        if i % (display_step * 10) == 0 and i:
+        if i % (display_step * 10) == 0 and i and display_step < 1000:
             display_step *= 10
     # train on batch
     sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: DROPOUT})
 
+all_train_accuracy = accuracy.eval(feed_dict={x: train_images, y_: train_labels, keep_prob: 1.0})
+print('all_train_accuracy => %.4f' % all_train_accuracy)
 
 # After training is done, it's good to check accuracy on data that wasn't used in training.
 
