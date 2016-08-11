@@ -32,9 +32,9 @@ tf.set_random_seed(0)
 LEARNING_RATE = 1e-4
 # set to 20000 on local environment to get 0.99 accuracy
 # TRAINING_ITERATIONS = 2500
-TRAINING_ITERATIONS = 20000
+TRAINING_ITERATIONS = 100000
     
-DROPOUT = 0.75
+DROPOUT = 0.5
 BATCH_SIZE = 100
 
 # set to 0 to train on all available data
