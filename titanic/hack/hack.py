@@ -66,7 +66,7 @@ def main():
     
     predict_kaggle_train_set(observation2label, '../data/train.csv')
     
-    predict_kaggle_test_set(observation2label, '../data/test.csv', 'submssion.csv')
+    predict_kaggle_test_set(observation2label, '../data/test.csv', 'submission.csv')
 
 if __name__ == '__main__':
     main()
